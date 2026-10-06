@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <set>
 #include <string>
@@ -1441,6 +1442,32 @@ TEST(TestGfx950AttentionDenseGraphMatch, DeclinesMissingAttentionScale)
     GraphSpec spec;
     spec.attnScaleValue = std::nullopt;
     EXPECT_FALSE(matchGraph(spec).has_value());
+}
+
+TEST(TestGfx950AttentionDenseGraphMatch, DeclinesAttentionScaleOutsideSupportedRange)
+{
+    for(const float scale : {0.0F,
+                             -0.0F,
+                             -0.5F,
+                             std::numeric_limits<float>::quiet_NaN(),
+                             std::numeric_limits<float>::infinity(),
+                             -std::numeric_limits<float>::infinity(),
+                             1e-30F,
+                             0x1p-65F,
+                             0x1p5F})
+    {
+        GraphSpec spec;
+        spec.attnScaleValue = scale;
+        EXPECT_FALSE(matchGraph(spec).has_value()) << "scale=" << scale;
+    }
+
+    // The range is inclusive: both bounds are still served.
+    for(const float scale : {0x1p-64F, 0x1p4F})
+    {
+        GraphSpec spec;
+        spec.attnScaleValue = scale;
+        EXPECT_TRUE(matchGraph(spec).has_value()) << "scale=" << scale;
+    }
 }
 
 TEST(TestGfx950AttentionDenseGraphMatch, DeclinesBothDeprecatedCausalBooleans)
